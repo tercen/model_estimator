@@ -245,6 +245,13 @@ Examples:
         help='Output file prefix (default: power_law_model)'
     )
 
+    parser.add_argument(
+        '--ignore-columns',
+        '-i',
+        default='',
+        help='Comma-separated list of column names to ignore as predictors'
+    )
+
     args = parser.parse_args()
 
     # Print header
@@ -254,8 +261,11 @@ Examples:
     print("For small samples: Simple model with interactions")
     print("=" * 70)
 
+    # Parse ignored columns
+    ignore_columns = [col.strip() for col in args.ignore_columns.split(',') if col.strip()]
+
     # Load data
-    df = load_data(args.csv_path, target_column=args.target_column)
+    df = load_data(args.csv_path, target_column=args.target_column, ignore_columns=ignore_columns)
     if df is None:
         sys.exit(1)
 
