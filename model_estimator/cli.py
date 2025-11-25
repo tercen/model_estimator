@@ -14,7 +14,7 @@ from itertools import combinations
 from .data_loader import load_data
 
 
-def simple_power_law_fit(df, target_column, output_prefix='power_law_model'):
+def simple_power_law_fit(df, target_column, output_prefix='power_law_model', significance_threshold=0.2):
     """Fit a simple power-law model with main effects and two-way interactions."""
     print("=" * 70)
     print("SIMPLE POWER-LAW MODEL (Main Effects + Two-Way Interactions)")
@@ -53,12 +53,12 @@ def simple_power_law_fit(df, target_column, output_prefix='power_law_model'):
 
             print(f"{col:<15} {r2:<8.3f} {pval:<10.3f} {coef:<10.3f}")
 
-            if pval < 0.2:  # Very relaxed for small sample
+            if pval < significance_threshold:
                 significant_vars.append(col)
         except:
             print(f"{col:<15} {'ERROR':<8} {'ERROR':<10} {'ERROR':<10}")
 
-    print(f"\nSignificant variables (p < 0.2): {significant_vars}")
+    print(f"\nSignificant variables (p < {significance_threshold}): {significant_vars}")
 
     if not significant_vars:
         print("No significant predictors found!")
@@ -252,6 +252,14 @@ Examples:
         help='Comma-separated list of column names to ignore as predictors'
     )
 
+    parser.add_argument(
+        '--significance-threshold',
+        '-s',
+        type=float,
+        default=0.2,
+        help='P-value threshold for predictor significance (default: 0.2)'
+    )
+
     args = parser.parse_args()
 
     # Print header
@@ -273,7 +281,7 @@ Examples:
     print(f"Sample size: {len(df)} (small sample - keeping it simple!)")
 
     # Fit simple model
-    results = simple_power_law_fit(df, args.target_column, output_prefix=args.output)
+    results = simple_power_law_fit(df, args.target_column, output_prefix=args.output, significance_threshold=args.significance_threshold)
 
     if results:
         print(f"\n" + "="*70)
