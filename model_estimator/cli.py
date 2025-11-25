@@ -7,6 +7,7 @@ Uses basic OLS with main effects and two-way interactions.
 import argparse
 import sys
 import json
+import pandas as pd
 import numpy as np
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
@@ -61,8 +62,77 @@ def simple_power_law_fit(df, target_column, output_prefix='power_law_model', sig
     print(f"\nSignificant variables (p < {significance_threshold}): {significant_vars}")
 
     if not significant_vars:
-        print("No significant predictors found!")
-        return None
+        print("No significant predictors found! Using intercept-only model.")
+
+        # Fit intercept-only model
+        y = df_log[f'log_{target_column}']
+        X = sm.add_constant(pd.DataFrame({'const': [1] * len(y)}))
+
+        intercept_model = sm.OLS(y, X).fit()
+        print(f"\n" + "="*50)
+        print("INTERCEPT-ONLY MODEL")
+        print("="*50)
+        print(intercept_model.summary())
+
+        # Generate predictions
+        y_pred = np.exp(intercept_model.predict(X))
+        y_actual = df[target_column]
+
+        # Simple plot
+        plt.figure(figsize=(8, 6))
+        plt.scatter(y_actual, y_pred, alpha=0.7, s=100)
+        plt.axhline(y=y_pred.iloc[0], color='r', linestyle='--', label=f'Mean prediction: {y_pred.iloc[0]:.2f}')
+        plt.xlabel(f'Actual {target_column}')
+        plt.ylabel(f'Predicted {target_column}')
+        plt.title(f'Intercept-Only Model (R² = {intercept_model.rsquared:.3f})')
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+
+        plt.tight_layout()
+        plot_file = f'{output_prefix}_simple_model.png'
+        plt.savefig(plot_file, dpi=300, bbox_inches='tight')
+        print(f"\n✓ Plot saved to {plot_file}")
+
+        # Generate simple code
+        print(f"\n" + "="*70)
+        print("SIMPLE PYTHON CODE")
+        print("="*70)
+        print(f"# Intercept-only model:")
+        print(f"{target_column}_estimate = {np.exp(intercept_model.params['const']):.4f}")
+
+        # Calculate offset
+        residuals = y_actual - y_pred
+        max_underestimate = residuals.max()
+        print(f"\n# Offset to never underestimate (on training data):")
+        print(f"offset = {max_underestimate:.4f}")
+        print(f"# To ensure no underestimation: {target_column}_safe = {np.exp(intercept_model.params['const']):.4f} + {max_underestimate:.4f}")
+
+        # Build JSON model structure
+        model_json = {
+            "intercept": float(np.exp(intercept_model.params['const'])),
+            "offset": float(max_underestimate),
+            "features": []
+        }
+
+        # Save JSON file
+        json_file = f'{output_prefix}_model.json'
+        with open(json_file, 'w') as f:
+            json.dump(model_json, f, indent=2)
+        print(f"\n✓ Model saved to {json_file}")
+
+        return {
+            'ols_model': intercept_model,
+            'significant_vars': [],
+            'interaction_terms': [],
+            'all_predictors': [],
+            'r_squared': intercept_model.rsquared,
+            'offset': max_underestimate,
+            'model_json': model_json,
+            'predictions': {
+                'ols': y_pred,
+                'actual': y_actual
+            }
+        }
 
     # Build interaction terms
     print(f"\nBuilding interaction terms...")
