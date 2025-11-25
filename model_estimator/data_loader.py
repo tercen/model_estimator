@@ -4,47 +4,37 @@ import pandas as pd
 
 def load_data(filename, target_column='ram', ignore_columns=None):
     """
-    Load data from CSV, Excel, or ODS file.
+    Load data from CSV file.
 
     Args:
-        filename: Path to data file (.csv, .xlsx, .ods)
+        filename: Path to CSV file
         target_column: Name of the target column to predict
         ignore_columns: List of column names to drop from the dataset
 
     Returns:
-        DataFrame with data, or None on error
+        DataFrame with data
+
+    Raises:
+        Exception: If file cannot be loaded or target column not found
     """
     if ignore_columns is None:
         ignore_columns = []
-    try:
-        # Determine file type and load accordingly
-        if filename.endswith('.csv'):
-            df = pd.read_csv(filename)
-        elif filename.endswith('.xlsx'):
-            df = pd.read_excel(filename, engine='openpyxl')
-        elif filename.endswith('.ods'):
-            df = pd.read_excel(filename, engine='odf')
-        else:
-            print(f"Error: Unsupported file format. Use .csv, .xlsx, or .ods")
-            return None
 
-        # Verify target column exists
-        if target_column not in df.columns:
-            print(f"Error: Column '{target_column}' not found in data")
-            print(f"Available columns: {list(df.columns)}")
-            return None
+    # Load CSV
+    df = pd.read_csv(filename)
 
-        # Drop ignored columns
-        columns_to_drop = [col for col in ignore_columns if col in df.columns and col != target_column]
-        if columns_to_drop:
-            df = df.drop(columns=columns_to_drop)
-            print(f"Ignored columns: {columns_to_drop}")
+    # Verify target column exists
+    if target_column not in df.columns:
+        raise ValueError(f"Column '{target_column}' not found in data. Available columns: {list(df.columns)}")
 
-        print(f"Loaded data: {df.shape[0]} rows, {df.shape[1]} columns")
-        print(f"Columns: {list(df.columns)}")
-        print(f"Target column: '{target_column}'")
+    # Drop ignored columns
+    columns_to_drop = [col for col in ignore_columns if col in df.columns and col != target_column]
+    if columns_to_drop:
+        df = df.drop(columns=columns_to_drop)
+        print(f"Ignored columns: {columns_to_drop}")
 
-        return df
-    except Exception as e:
-        print(f"Error loading {filename}: {e}")
-        return None
+    print(f"Loaded data: {df.shape[0]} rows, {df.shape[1]} columns")
+    print(f"Columns: {list(df.columns)}")
+    print(f"Target column: '{target_column}'")
+
+    return df

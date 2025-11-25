@@ -15,10 +15,10 @@ from itertools import combinations
 from .data_loader import load_data
 
 
-def simple_power_law_fit(df, target_column, output_prefix='power_law_model', significance_threshold=0.2):
+def power_law_fit(df, target_column, output_prefix='power_law_model', max_delta_aic=5):
     """Fit a simple power-law model with main effects and two-way interactions."""
     print("=" * 70)
-    print("SIMPLE POWER-LAW MODEL (Main Effects + Two-Way Interactions)")
+    print("FITTING POWER-LAW MODEL (Main Effects + Two-Way Interactions)")
     print("=" * 70)
 
     # Get numeric columns excluding target
@@ -35,31 +35,46 @@ def simple_power_law_fit(df, target_column, output_prefix='power_law_model', sig
     for col in numeric_cols:
         df_log[f'log_{col}'] = np.log(df_log[col])
 
-    # Test each predictor individually first
-    print(f"\nUnivariate significance tests:")
-    print(f"{'Variable':<15} {'R²':<8} {'p-value':<10} {'Coef':<10}")
-    print("-" * 50)
+    # Test each predictor individually using AIC
+    print(f"\nUnivariate model comparison (AIC-based):")
+    print(f"{'Variable':<15} {'R²':<8} {'AIC':<10} {'ΔAIC':<10} {'Coef':<10}")
+    print("-" * 60)
 
-    significant_vars = []
+    y = df_log[f'log_{target_column}']
+    models = {}
+
     for col in numeric_cols:
         log_col = f'log_{col}'
-        X = sm.add_constant(df_log[log_col])
-        y = df_log[f'log_{target_column}']
+        x = sm.add_constant(df_log[log_col])
 
         try:
-            model = sm.OLS(y, X).fit()
-            r2 = model.rsquared
-            pval = model.pvalues.iloc[1]
-            coef = model.params.iloc[1]
-
-            print(f"{col:<15} {r2:<8.3f} {pval:<10.3f} {coef:<10.3f}")
-
-            if pval < significance_threshold:
-                significant_vars.append(col)
+            model = sm.OLS(y, x).fit()
+            models[col] = {
+                'model': model,
+                'aic': model.aic,
+                'r2': model.rsquared,
+                'coef': model.params.iloc[1]
+            }
         except:
-            print(f"{col:<15} {'ERROR':<8} {'ERROR':<10} {'ERROR':<10}")
+            print(f"{col:<15} {'ERROR':<8} {'ERROR':<10} {'ERROR':<10} {'ERROR':<10}")
 
-    print(f"\nSignificant variables (p < {significance_threshold}): {significant_vars}")
+    # Find best AIC
+    if not models:
+        print("No valid models could be fit!")
+        best_aic = None
+    else:
+        best_aic = min(m['aic'] for m in models.values())
+
+    # Select predictors within delta_aic threshold
+    significant_vars = []
+    for col, info in models.items():
+        delta_aic = info['aic'] - best_aic
+        print(f"{col:<15} {info['r2']:<8.3f} {info['aic']:<10.2f} {delta_aic:<10.2f} {info['coef']:<10.3f}")
+
+        if delta_aic < max_delta_aic:
+            significant_vars.append(col)
+
+    print(f"\nSelected variables (ΔAIC < {max_delta_aic}): {significant_vars}")
 
     if not significant_vars:
         print("No significant predictors found! Using intercept-only model.")
@@ -323,11 +338,11 @@ Examples:
     )
 
     parser.add_argument(
-        '--significance-threshold',
-        '-s',
+        '--max-delta-aic',
+        '-d',
         type=float,
-        default=0.2,
-        help='P-value threshold for predictor significance (default: 0.2)'
+        default=5.0,
+        help='Maximum ΔAIC for predictor selection (default: 5.0, lower=stricter)'
     )
 
     args = parser.parse_args()
@@ -343,15 +358,17 @@ Examples:
     ignore_columns = [col.strip() for col in args.ignore_columns.split(',') if col.strip()]
 
     # Load data
-    df = load_data(args.csv_path, target_column=args.target_column, ignore_columns=ignore_columns)
-    if df is None:
+    try:
+        df = load_data(args.csv_path, target_column=args.target_column, ignore_columns=ignore_columns)
+    except Exception as e:
+        print(f"Error: {e}")
         sys.exit(1)
 
     print(f"\nData shape: {df.shape}")
     print(f"Sample size: {len(df)} (small sample - keeping it simple!)")
 
     # Fit simple model
-    results = simple_power_law_fit(df, args.target_column, output_prefix=args.output, significance_threshold=args.significance_threshold)
+    results = power_law_fit(df, args.target_column, output_prefix=args.output, max_delta_aic=args.max_delta_aic)
 
     if results:
         print(f"\n" + "="*70)
