@@ -124,6 +124,7 @@ def power_law_fit(df, target_column, output_prefix='power_law_model', max_delta_
 
         # Build JSON model structure
         model_json = {
+            "kind": "OperatorEstimateModel",
             "intercept": float(np.exp(intercept_model.params['const'])),
             "offset": float(max_underestimate),
             "features": []
@@ -248,6 +249,7 @@ def power_law_fit(df, target_column, output_prefix='power_law_model', max_delta_
 
     # Build JSON model structure
     model_json = {
+        "kind": "OperatorEstimateModel",
         "intercept": float(np.exp(ols_model.params['const'])),
         "offset": float(max_underestimate_ols),
         "features": []
@@ -258,7 +260,8 @@ def power_law_fit(df, target_column, output_prefix='power_law_model', max_delta_
         if f'log_{var}' in ols_model.params:
             coef = ols_model.params[f'log_{var}']
             model_json["features"].append({
-                "feature": var,
+                "kind": "Feature",
+                "name": var,
                 "coefficient": 1.0,  # Coefficient is 1 for power-law form
                 "exponent": float(coef)
             })
@@ -270,7 +273,8 @@ def power_law_fit(df, target_column, output_prefix='power_law_model', max_delta_
             vars_in_term = term.replace('log_', '').split(':')
             feature_name = f"{vars_in_term[0]}_x_{vars_in_term[1]}"
             model_json["features"].append({
-                "feature": feature_name,
+                "kind": "Feature",
+                "name": feature_name,
                 "coefficient": 1.0,  # Coefficient is 1 for power-law form
                 "exponent": float(coef)
             })
