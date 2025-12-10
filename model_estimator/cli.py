@@ -219,7 +219,7 @@ def power_law_fit(df, target_column, output_prefix='power_law_model', max_delta_
     for term in interaction_terms:
         if term in ols_model.params:
             coef = ols_model.params[term]
-            var_pair = term.replace('log_', '').replace(':', '_x_')
+            var_pair = term.replace('log_', '').replace(':', '_||_')
             print(f"power_{var_pair} = {coef:.4f}")
 
     print(f"\n# Calculate {target_column} estimate:")
@@ -271,7 +271,7 @@ def power_law_fit(df, target_column, output_prefix='power_law_model', max_delta_
         if term in ols_model.params:
             coef = ols_model.params[term]
             vars_in_term = term.replace('log_', '').split(':')
-            feature_name = f"{vars_in_term[0]}_x_{vars_in_term[1]}"
+            feature_name = f"{vars_in_term[0]}_||_{vars_in_term[1]}"
             model_json["features"].append({
                 "kind": "Feature",
                 "name": feature_name,
